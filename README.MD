@@ -9,7 +9,7 @@
 
 # 更新说明
 * **2019/05/01**
-	* 修复生成的表达式的错误重用问题。
+	* 修复生成表达式的错误重用问题。
 * **2019/04/11**
 	* 上传代码
 
@@ -54,7 +54,7 @@ with Sesson('example.js') as sess:  # 其中example.js指要调用的JS脚本所
 
     print('PyJSCaller执行时间消耗：%s' % (time.clock() - start))
 
-print('res响应: %s' % res.getRespond())  # 将得到最后执行结果 100
+print('res响应: %s' % res.getValue())  # 将得到最后执行结果 100
 
 print('执行JS脚本总耗时：%s' % (time.clock() - start))
 
@@ -77,7 +77,7 @@ with Sesson('example.js') as sess:
 
     print('PyJSCaller执行时间消耗：%s' % (time.clock() - start))
 
-print('query_str响应: %s' % query_str.getRespond())
+print('query_str响应: %s' % query_str.getValue())
 
 print('执行JS脚本总耗时: %s' % (time.clock() - start))
 
