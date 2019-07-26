@@ -90,7 +90,7 @@ MIT license
 Changelog
 ===============
 
-0.1.0
+0.1.1
 ---------------
 
 * Rebuilt all.

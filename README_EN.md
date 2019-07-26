@@ -79,7 +79,7 @@ MIT license
 
 # Changelog
 
-### 0.1.0
+### 0.1.1
 - Rebuilt all.
 - Linux was supported.
 - Python 3.7.x was supported.
