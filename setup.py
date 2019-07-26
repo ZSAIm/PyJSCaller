@@ -7,7 +7,7 @@ version = '0.1.0'
 author = 'ZSAIm'
 author_email = 'zzsaim@163.com'
 
-with io.open('README_EN.md', 'r', encoding='utf-8') as freadme:
+with io.open('README.rst', 'r', encoding='utf-8') as freadme:
     long_description = freadme.read()
 
 setup(

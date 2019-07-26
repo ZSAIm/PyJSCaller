@@ -1,6 +1,7 @@
 PyJSCaller
 ===============
-![Build Status](https://img.shields.io/badge/build-passing-green.svg)
+[![Build Status](https://img.shields.io/badge/build-passing-green.svg)](https://github.com/ZSAIm/PyJSCaller)
+[![Build Status](https://img.shields.io/badge/pypi-v0.1.0-blue.svg)](https://pypi.org/project/PyJSCaller/)
 
 
 [Click here](https://github.com/ZSAIm/PyJSCaller/blob/master/README_EN.md) for the English version. 
