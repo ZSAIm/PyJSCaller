@@ -1,7 +1,7 @@
 PyJSCaller
 ===============
 [![Build Status](https://img.shields.io/badge/build-passing-green.svg)](https://github.com/ZSAIm/PyJSCaller)
-[![Build Status](https://img.shields.io/badge/pypi-v0.1.0-blue.svg)](https://pypi.org/project/PyJSCaller/)
+[![Build Status](https://img.shields.io/badge/pypi-v0.1.1-blue.svg)](https://pypi.org/project/PyJSCaller/)
 
 Run JavaScript code from Python.
 
