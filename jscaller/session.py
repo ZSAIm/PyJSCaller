@@ -138,12 +138,11 @@ class Session:
 
     def _extract_expr_(self, expr):
         if expr.isResult():
-            if isinstance(expr.parent, Express):
-                self._extract_parent_(expr)
-                self._extract_result_(expr.result)
-            else:
-                self._extract_result_(expr.result)
-                self._extract_parent_(expr)
+            self._extract_parent_(expr)
+            bak = self._results.pop()
+            self._extract_result_(expr.result)
+            if bak not in self._results:
+                self._results.append(bak)
         else:
             if isinstance(expr.loperand, Express):
                 self._extract_expr_(expr.loperand)

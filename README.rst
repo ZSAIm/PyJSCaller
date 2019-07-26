@@ -9,7 +9,7 @@ a short example:
 
 *****
 
-example.js
+	example.js
 
 
 .. code:: javascript
