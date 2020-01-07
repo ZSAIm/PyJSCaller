@@ -1,396 +1,435 @@
+# -*- coding: UTF-8 -*-
+from __future__ import unicode_literals
+from functools import wraps
+
+VARIABLE_NAME = '_'
 
 
-__all__ = ["Object", "Express", "Result",
-           "array_result", "dict_result", "require_object"]
-
-JS_HANDLE_NAME = '_'
-
-
-def require_object(parent, container, object_names=(), preobjs=()):
-    objs = []
-    for i in object_names:
-        if i in container:
-            objs.append(container[i])
-            continue
-        pt = parent
-        if not isinstance(parent, Express) and not isinstance(parent, Object):
-            pt = None
-        obj = Object(pt, i, preobjs)
-        container[i] = obj
-        objs.append(obj)
-        setattr(parent, i, obj)
-
-    return objs if len(objs) > 1 else objs[0]
+def object2result(obj):
+    """ Object 转 Result。"""
+    return Result(obj.__parent__, obj.__name__, True)
 
 
-class Object:
-    """ Express's and Result's Object
+def object2expr(obj):
+    """ Object 转 Express。"""
+    return Express(obj.__parent__, object2result(obj), None)
 
+
+def expr_operation(func):
+    """ 对 Object对象的运算，需要将其封装成结果单元Result才能参与运算。
+    再由于每一个Result都需要Express进行封装，所以再加一层表达式单元Express。
     """
-    def __init__(self, parent, name: str, preobjs=()):
-        self._parent = parent
-        self._name = name
-        self._objs = {}
-        for i in preobjs:
-            self._objs[i.name] = i
-            setattr(self, i.name, i)
-        self._subobj = list(preobjs)
+    @wraps(func)
+    def wrapper(*args):
+        args = list(args)
+        for i, obj in enumerate(args):
+            if isinstance(obj, Object):
+                args[i] = object2expr(args[i])
 
-    def sub(self, *subobj):
-        self._subobj.extend(subobj)
-
-    @property
-    def parent(self):
-        return self._parent
-
-    @property
-    def name(self):
-        return self._name
-
-    def __call__(self, *args, **kwargs):
-        expr = Express(self._parent,
-                       Result(self._parent, self._name, False, *args, **kwargs),
-                       None,
-                       self._subobj)
-
-        return expr
-
-    def get(self, *args):
-        return require_object(self, self._objs, args)
-
-    def __repr__(self):
-        return self.getOriginExpr()
-
-    def __str__(self):
-        return self.getOriginExpr()
-
-    def getOriginExpr(self):
-        if self._parent:
-            parent_str = self._parent.getOriginExpr() + '.'
-        else:
-            parent_str = ''
-        return parent_str + self._name
+        return func(*args)
+    return wrapper
 
 
-class Express:
-    """ Create a Express to be compiled by Session.
+class BaseObject(object):
+    """ 每一个表达式的运算生成的表达式都没有父级对象，"""
 
-    """
-    def __init__(self, parent=None, operands=None, operator=None,
-                 preobjs=()):
-        self._parent = parent
-        self._operator = operator
-        self._operands = operands
-
-        self._objs = {}
-        for i in preobjs:
-            self.get(i.name)
-
-        self._new = False
-
-        if isinstance(operands, Result):
-            self._is_result = True
-        else:
-            self._is_result = False
-
-        self._value = None
-
-
-    @property
-    def parent(self):
-        return self._parent
-
-    @property
-    def result(self):
-        if not self._is_result:
-            raise TypeError("%s isn't a Result." % self.getOriginExpr())
-
-        return self._operands
-
-    @property
-    def operator(self):
-        return self._operator
-
-    def __contains__(self, item):
-        if self._is_result:
-            return False
-
-        if isinstance(self.loperand, Express) or isinstance(self.roperand, Express):
-            return True
-
-        return False
-
-    def __call__(self, *args, **kwargs):
-        if not self._is_result:
-            raise AttributeError("not type of Result")
-        return Express(self._parent,
-                       Result(self._parent, self.result.met_name, False, *args, **kwargs),
-                       None)
-
-    def isResult(self):
-        return self._is_result
-
-    @property
-    def loperand(self):
-        return self._operands[0]
-
-    @property
-    def roperand(self):
-        return self._operands[1]
-
-    def get(self, *args):
-        return require_object(self, self._objs, args)
-
-    def getValue(self):
-        if self._value is not None:
-            return self._value
-        if self._is_result:
-            self._value = self.result.getValue()
-            return self._value
-        else:
-            eval_array = []
-            for i in self._operands:
-                if isinstance(i, Express):
-                    eval_array.append(_expr_type_text(i.getValue()))
-                else:
-                    eval_array.append(_expr_type_text(i))
-            try:
-                res = eval(self.operator.join(eval_array))
-            except Exception as e:
-                raise RuntimeError('Express(%s): %s' % (self.operator.join(eval_array), str(e)))
-            self._value = res
-            return res
-
-    def getLinkedExpr(self, sess):
-        if self._is_result:
-            return '%s[%d]' % (JS_HANDLE_NAME, sess.index(self.result))
-        else:
-            expr_array = []
-            for i in self._operands:
-                expr_array.append(_determine_linked_expr(i, sess))
-
-            return self.operator.join(expr_array)
-
-    def getOriginExpr(self):
-        if self._is_result:
-            code = self.result.getOriginExpr()
-            return code
-        else:
-            expr_array = []
-            for i in self._operands:
-                expr_array.append(_determine_origin_expr(i))
-            return '%s' % self.operator.join(expr_array)
-
+    @expr_operation
     def __add__(self, other):
         return Express(None, (self, other), '+')
 
+    @expr_operation
     def __radd__(self, other):
         return Express(None, (other, self), '+')
 
+    @expr_operation
     def __sub__(self, other):
         return Express(None, (self, other), '-')
 
+    @expr_operation
     def __rsub__(self, other):
         return Express(None, (other, self), '-')
 
+    @expr_operation
     def __mul__(self, other):
         return Express(None, (self, other), '*')
 
+    @expr_operation
     def __rmul__(self, other):
         return Express(None, (other, self), '*')
 
+    @expr_operation
     def __div__(self, other):
         return Express(None, (self, other), '/')
 
+    @expr_operation
     def __rdiv__(self, other):
         return Express(None, (other, self), '*')
 
-    def __str__(self):
-        return self.getOriginExpr()
+    @expr_operation
+    def __divmod__(self, other):
+        return Express(None, (other, self), '%')
 
-    def __repr__(self):
-        return self.getOriginExpr()
+    def __getattr__(self, item):
+        return Object(self, item)
 
-
-def _array_expr(parent, list_tuple):
-    return Express(parent, array_result(list_tuple), None)
-
-
-def _dict_expr(parent, _dict):
-    return Express(parent, dict_result(_dict), None)
+    __getitem__ = __getattr__
 
 
-def array_result(list_tuple):
+def array2result(list_tuple):
+    """ list/tuple 转 Result。"""
     return Result(None, '[]', False, *list_tuple)
 
 
-def dict_result(_dict):
+def dict2result(_dict):
+    """ dict 转 Result。"""
     return Result(None, '{}', False, **_dict)
 
 
-class Result:
-    """ Result is a Express that actually executes in JSEngine.
+def array2expr(parent, list_tuple):
+    """ list/tuple 转 Express。"""
+    return Express(parent, array2result(list_tuple), None)
 
-    """
-    def __init__(self, parent, object_name: str, is_attribute: bool, *args, **kwargs):
-        self._parent = parent
-        self._obj_name = object_name
-        self.args = []
-        self.kwargs = {}
-        self._isattr = is_attribute
-        self._new = False
-        self._value = None
 
-        for i in args:
-            if isinstance(i, list) or isinstance(i, tuple):
-                app = _array_expr(parent, i)
-            elif isinstance(i, dict):
-                app = _dict_expr(parent, i)
-            else:
-                app = i
-            self.args.append(app)
+def dict2expr(parent, _dict):
+    """ dict 转 Express。"""
+    return Express(parent, dict2result(_dict), None)
 
-        for i, j in kwargs.items():
-            if isinstance(j, list) or isinstance(j, tuple):
-                kwvalue = _array_expr(parent, j)
-            elif isinstance(j, dict):
-                kwvalue = _dict_expr(parent, j)
-            else:
-                kwvalue = j
 
-            self.kwargs[i] = kwvalue
+class Object(BaseObject):
+    """ 对象单元，作为中间对象的形式存在。这是为了避免对中间对象进行结果单元构建。 """
+    def __init__(self, parent, name):
+        self.__parent = parent
+        self.__name = name
 
-    def __str__(self):
-        return self.getOriginExpr()
+    @property
+    def __parent__(self):
+        return self.__parent
+
+    @property
+    def __name__(self):
+        return self.__name
+
+    def __call__(self, *args, **kwargs):
+        """ 对象的函数调用必然需要作为一个结果单元进行运算。 """
+        return Express(self.__parent, Result(self.__parent, self.__name, False, *args, **kwargs), None)
 
     def __repr__(self):
-        return self.getOriginExpr()
+        return self.__origin_expr__()
 
-    def __eq__(self, other):
-        return id(other) == id(self)
+    def __str__(self):
+        return self.__origin_expr__()
 
-    def new(self):
-        self._new = True
-
-    def link(self, value):
-        self._value = value
-
-    def getValue(self):
-        return self._value
-
-    def getLinkedExpr(self, sess):
-        if self._obj_name == '{}':
-            return '{%s}' % _dict_js_expr(self.kwargs, sess)
-        elif self._obj_name == '[]':
-            return '[%s]' % _args_js_expr(self.args, sess)
+    def __origin_expr__(self):
+        if self.__parent:
+            # 如果表达式是运算结果的时候，使用()把运算结果框起来。
+            # 否则，以属性的形式引用加.
+            if self.__parent__.__is_result__():
+                parent_str = '%s.'
+            else:
+                parent_str = '(%s).'
+            parent_str = parent_str % self.__parent.__origin_expr__()
         else:
             parent_str = ''
-            if self._parent:
-                if isinstance(self._parent, Object):
-                    parent_str = self._parent.getOriginExpr() + '.'
-                else:
-                    parent_str = '%s[%d].' % (JS_HANDLE_NAME,
-                                              sess.index(self._parent.result))
-            new_str = ''
-            if self._new:
-                new_str = 'new '
-            if self._isattr:
-                return '{parent}{object_name}'.format(
-                    parent=parent_str,
-                    object_name=self._obj_name
-                )
-            else:
-                return '{new}{parent}{object_name}({arguments})'.format(
-                    new=new_str,
-                    parent=parent_str,
-                    object_name=self._obj_name,
-                    arguments=_args_js_expr(self.args, sess)
-                )
 
-    def getOriginExpr(self):
-        if self._obj_name == '{}':
-            return '{%s}' % _dict_origin_expr(self.kwargs)
-        elif self._obj_name == '[]':
-            return '[%s]' % _args_origin_expr(self.args)
+        return parent_str + self.__name
+
+
+class Express(BaseObject):
+    """ 表达式单元，用于存储构建结果的单元之间的关系。
+
+    当 operands是Result结果对象的时候，说明这是作为函数调用的结果。
+    而当operands是元组对象的时候，说明这是运算结果，loperand是左操作数，roperand是右操作数。
+    """
+    def __init__(self, parent=None, operands=None, operator=None):
+        self.__parent = parent
+        self.__operator = operator
+        self.__operands = operands
+
+        self._new = False
+
+        self._value = None
+
+    @property
+    def __loperand__(self):
+        return self.__operands[0]
+
+    @property
+    def __roperand__(self):
+        return self.__operands[1]
+
+    @property
+    def __parent__(self):
+        return self.__parent
+
+    @property
+    def __result__(self):
+        return self.__operands
+
+    def __new_instance__(self):
+        self.__result__.__new_instance__()
+
+    def __is_result__(self):
+        """ 因为每一个结果单元Result都需要使用Express进行封装，所以有必要检测该表达式是否为结果单元。 """
+        return isinstance(self.__operands, Result)
+
+    def __call__(self, *args, **kwargs):
+        if self.__is_result__():
+            name = self.__result__.__name__
+            parent = self.__parent
         else:
-            parent_str = self._parent.getOriginExpr() + '.' if self._parent else ''
+            name = '()'
+            parent = self
+
+        return Express(parent, Result(parent, name, False, *args, **kwargs))
+
+    def get_value(self):
+        """ """
+        if self._value is not None:
+            return self._value
+        if self.__is_result__():
+            self._value = self.__result__.get_value()
+            return self._value
+        else:
+            eval_array = []
+            for i in self.__operands:
+                if isinstance(i, Express):
+                    eval_array.append(i.get_value().__repr__())
+                else:
+                    eval_array.append(i.__repr__())
+            try:
+                res = eval(self.__operator.join(eval_array), {}, {})
+            except Exception as e:
+                raise RuntimeError('Express(%s): %s' % (self.__operator.join(eval_array), str(e)))
+            self._value = res
+            return res
+
+    getValue = get_value
+
+    def __linked_expr__(self, sess):
+        """ 返回连接会话的结果对象后的表达式。 """
+        if self.__is_result__():
+            return '%s[%d]' % (VARIABLE_NAME, sess.index(self.__result__))
+        else:
+            expr_array = []
+            for i in self.__operands:
+                expr_array.append(_determine_linked_expr(i, sess))
+
+            return self.__operator.join(expr_array)
+
+    def __origin_expr__(self):
+        """ 返回表达式文本。 """
+        if self.__is_result__():
+            code = self.__result__.__origin_expr__()
+            return code
+        else:
+            expr_array = []
+            for i in self.__operands:
+                expr_array.append(_determine_origin_expr(i))
+            return '%s' % self.__operator.join(expr_array)
+
+    def __repr__(self):
+        return self.__origin_expr__()
+
+    __str__ = __repr__
+
+
+class Result(object):
+    """ 结果单元是真正作为执行单元的对象。
+    注意的是：每一个结果单元都需要使用表达式单元对象Express进行封装，
+            这是为了实现让结果单元能够进行再次运算的操作。
+    """
+    def __init__(self, parent, object_name, is_attribute, *args, **kwargs):
+        self.__parent = parent
+        self.__name = object_name
+        self.__args = []
+        self.__kwargs = {}
+        self.__isattr = is_attribute
+        self.__new = False
+        self.__value = None
+
+        # 如果使用的是Object对象作为参数，那么意味着该对象应该作为结果进行处理。
+        # 所以需要将其转化为Result对象。并且为了保持一致性，再使用表达式对象封装结果。
+        for i in args:
+            if type(i) in (list, tuple):
+                app = array2expr(parent, i)
+            elif type(i) is dict:
+                app = dict2expr(parent, i)
+            else:
+                if isinstance(i, Object):
+                    i = object2expr(i)
+                app = i
+            self.__args.append(app)
+
+        for i, j in kwargs.items():
+            if type(j) in (list, tuple):
+                kw_value = array2expr(parent, j)
+            elif isinstance(j, dict):
+                kw_value = dict2expr(parent, j)
+            else:
+                # 对于Object对象需要将其转成Express
+                if isinstance(j, Object):
+                    j = object2expr(j)
+                kw_value = j
+
+            self.__kwargs[i] = kw_value
+
+    @property
+    def __parent__(self):
+        return self.__parent
+
+    def __new_instance__(self):
+        self.__new = True
+
+    def __value__(self, value):
+        self.__value = value
+
+    def get_value(self):
+        return self.__value
+
+    getValue = get_value
+
+    def __linked_expr__(self, sess):
+        """ 返回连接会话的结果对象后的表达式。 """
+        # 字典结果对象和列表结果对象需要逐个元素进行格式化连接。
+        if self.__name == '{}':
+            # 字典对象：{**kwargs}
+            return '{%s}' % _stringify_linked_dict_expr(self.__kwargs, sess)
+        elif self.__name in '[]':
+            # 列表对象：[*args]
+            return '[%s]' % _stringify_linked_array_expr(self.__args, sess)
+        elif self.__name == '()':
+            # 缘由： (Express + Express)(...)
+            return '(%s)(%s)' % (self.__parent.__linked_expr__(sess), _stringify_array_expr(self.__args))
+        else:
+            parent_str = ''
+            if self.__parent:
+                if isinstance(self.__parent, Object):
+                    # Object对象作为静态属性，不需要进行搜索建立引用连接关系。
+                    parent_str = self.__parent.__origin_expr__() + '.'
+                else:
+                    # 理论上来说，结果对象Result的父级剩下的只可能是Express对象
+                    # 所以只需要将其交由表达式连接即可。
+                    fm = '%s.'
+                    if not isinstance(self.__parent.__result__, Result):
+                        fm = '(%s).'
+                    parent_str = fm % self.__parent.__linked_expr__(sess)
 
             new_str = ''
-            if self._new:
+            if self.__new:
                 new_str = 'new '
-
-            if self._isattr:
+            if self.__isattr:
                 return '{parent}{object_name}'.format(
                     parent=parent_str,
-                    object_name=self._obj_name
+                    object_name=self.__name
                 )
             else:
                 return '{new}{parent}{object_name}({arguments})'.format(
                     new=new_str,
                     parent=parent_str,
-                    object_name=self._obj_name,
-                    arguments=_args_origin_expr(self.args)
+                    object_name=self.__name,
+                    arguments=_stringify_linked_array_expr(self.__args, sess)
                 )
 
-    def findAllExpr(self):
+    def __origin_expr__(self):
+        """ 返回表达式文本。 """
+        if self.__name == '{}':
+            # 字典对象：{**kwargs}
+            return '{%s}' % _stringify_dict_expr(self.__kwargs)
+        elif self.__name == '[]':
+            # 列表对象：[*args]
+            return '[%s]' % _stringify_array_expr(self.__args)
+        elif self.__name == '()':
+            # 缘由： (Express + Express)(...)
+            return '(%s)(%s)' % (self.__parent.__origin_expr__(), _stringify_array_expr(self.__args))
+        else:
+            # 缘由： Express/Object.name(*args)
+            parent_str = ''
+            if self.__parent:
+                # 如果是表达式的运算结果，那么使用()把运算结果框起来。
+                if self.__parent.__is_result__():
+                    parent_str = '%s.' % self.__parent.__origin_expr__()
+                else:
+                    parent_str = '(%s).' % self.__parent.__origin_expr__()
+
+            new_str = ''
+            if self.__new:
+                new_str = 'new '
+
+            if self.__isattr:
+                return '{parent}{object_name}'.format(parent=parent_str, object_name=self.__name)
+            else:
+                return '{new}{parent}{object_name}({arguments})'.format(
+                    new=new_str,
+                    parent=parent_str,
+                    object_name=self.__name,
+                    arguments=_stringify_array_expr(self.__args)
+                )
+
+    def findall_expr(self):
+        """ 搜索返回参数中所有的表达式对象。 """
         exprs = []
-        for i in self.args:
+        for i in self.__args:
             if isinstance(i, Express):
                 exprs.append(i)
 
-        for i in self.kwargs.values():
+        for i in self.__kwargs.values():
             if isinstance(i, Express):
                 exprs.append(i)
 
         return exprs
 
+    def __repr__(self):
+        return self.__origin_expr__()
 
-def _expr_type_text(expr):
-    return expr.__repr__()
+    __str__ = __repr__
+
+    def __eq__(self, other):
+        return id(other) == id(self)
 
 
-def _args_origin_expr(expr_args):
+def _stringify_array_expr(expr_args):
+    """ 字符串化列表结果对象的Result。 """
     _args_str_array = []
     for i in expr_args:
         if isinstance(i, Express):
-            _args_str_array.append((i.getOriginExpr(), True))
+            _args_str_array.append((i.__origin_expr__(), True))
         else:
             _args_str_array.append((i, False))
 
-    return ','.join([_expr_type_text(i[0]) if i[1] is False else i[0] for i in _args_str_array])
+    return ','.join([i[0].__repr__() if i[1] is False else i[0] for i in _args_str_array])
 
 
-def _args_js_array(expr_args, sess):
+def _stringify_linked_array_expr(expr_args, sess):
+    """ 字符串化连接了的列表结果对象Result。"""
+
     ret_expr_array = []
     for i in expr_args:
         ret_expr_array.append(_determine_linked_expr(i, sess))
 
-    return ret_expr_array
+    return ','.join(ret_expr_array)
 
 
-def _args_js_expr(expr_args, sess):
-    return ','.join(_args_js_array(expr_args, sess))
-
-
-def _dict_origin_expr(expr_dict):
+def _stringify_dict_expr(expr_dict):
+    """ 字符串化字典结果对象Result。 """
     _args_str = []
     for i, j in expr_dict.items():
         if isinstance(j, Express):
-            data = _expr_type_text(i), j.getOriginExpr()
+            data = i.__repr__(), j.__origin_expr__()
         else:
-            data = _expr_type_text(i), _expr_type_text(j)
+            data = i.__repr__(), j.__repr__()
         _args_str.append(data)
     _kwargs_str = ['%s:%s' % (i[0], i[1]) for i in _args_str]
     return ','.join(_kwargs_str)
 
 
-def _dict_js_expr(expr_dict, sess):
+def _stringify_linked_dict_expr(expr_dict, sess):
+    """ 字符串化连接了的字典对象Result。"""
     _args_str = []
     for i, j in expr_dict.items():
         if isinstance(j, Express):
-            data = _expr_type_text(i), j.getLinkedExpr(sess)
+            data = i.__repr__(), j.__linked_expr__(sess)
         else:
-            data = _expr_type_text(i), _expr_type_text(j)
+            data = i.__repr__(), j.__repr__()
         _args_str.append(data)
 
     _kwargs_str = ['%s:%s' % (i[0], i[1]) for i in _args_str]
@@ -398,23 +437,19 @@ def _dict_js_expr(expr_dict, sess):
 
 
 def _determine_origin_expr(expr):
+    """ 返回由表达式决定的原表达式文本。"""
     if isinstance(expr, Express):
-        return expr.getOriginExpr()
+        return expr.__origin_expr__()
     else:
-        return _expr_type_text(expr)
+        return expr.__repr__()
 
 
 def _determine_linked_expr(expr, sess):
+    """ 返回由连接表达式决定的表达式文本。"""
     if isinstance(expr, Express):
-        return expr.getLinkedExpr(sess)
+        return expr.__linked_expr__(sess)
     else:
-        return _expr_type_text(expr)
-
-
-
-
-
-
+        return expr.__repr__()
 
 
 

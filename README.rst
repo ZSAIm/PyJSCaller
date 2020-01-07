@@ -12,30 +12,13 @@ a short example:
 	example.js
 
 
-.. code:: javascript
+.. code::
 
 	function add(a, b){
 		return a + b;
 	}
 
-
-Usage
----------------
-
-.. code:: python
-
-	>>> import jscaller
-	>>> jscaller.eval("'Hello World!'.toUpperCase()")
-	'HELLO WORLD!'
-	>>> with jscaller.Session('example.js', timeout=3) as sess:
-	...     add = sess.get('add')
-	...     retval = add(add(1, 2), 2)
-	...     sess.call(retval)
-	>>> retval.getValue()
-	5
-
-
-Supported JSEngine 
+Supported JSEngine
 ====================
 
 * `NodeJS <https://nodejs.org/>`_ - defalut
@@ -47,39 +30,60 @@ Installation
 
     $ pip install PyJSCaller
 
-More Examples
-===============
 
-Another short example
+Example
+=========
 
-.. code:: python
+Usage1
+~~~~~~~
 
-	>>> from jscaller.collect import new, String
-	>>> with jscaller.Session() as sess:
-	...     string = new(String("Hello JavaScript!"))
-	...     string.replace('JavaScript', 'Python')
-	...     sess.call(string)
-	>>> string.getValue()
-	"Hello Python!"
+.. code::
+
+    >>> import jscaller
+    >>> jscaller.eval("'Hello World!'.toUpperCase()")
+    'HELLO WORLD!'
+
+Usage2
+~~~~~~~
+
+.. code::
+
+    >>> ctx = jscaller.compile('example.js', timeout=3)
+    >>> ctx.call('add', 1, 1)
+    2
+
+Usage3
+~~~~~~~
+
+.. code::
+
+    >>> with jscaller.session('example.js') as sess:
+    ...     add, math = sess.get('add', 'Math')
+    ...     res1 = add(2, 3)
+    ...     res2 = math.PI + math.E
+    ...     sess.call(res1, res2)
+    ...
+    >>> res1.get_value()
+    5
+    >>> res2.get_value()
+    5.859874482048838
 
 
-Using ``jscaller.make()`` to equip other JSEngine: 
+Change JSEngine
+~~~~~~~~~~~~~~~~~~
 
-.. code:: python
+.. code::
 
-	>>> from jscaller.engine import NodeJS, PhantomJS
-	>>> PhantomJS.environ(shell=True, timeout=5)
-	>>> jscaller.make(PhantomJS)
-	>>> jscaller.eval('1+1*2/4')
-	1.5
+    >>> from jscaller.engine import PhantomJS
+    >>> PhantomJS.test()
+    2.1.1
+    >>> PhantomJS.config(timeout=10)
+    >>> jscaller.make(PhantomJS)
+    >>> jscaller.eval('1+1')
+    2
 
 
-You can use ``PhantomJS.test()`` to check if engine worked correctly. 
 
-.. code:: python
-
-	>>> PhantomJS.test()    # return the version number of PhantomJS
-	2.1.1 
 
 
 
@@ -87,18 +91,10 @@ License
 ===============
 MIT license
 
-Changelog
-===============
 
-0.1.1
----------------
 
-* Rebuilt all.
-* Linux was supported.
-* Python 3.7.x was supported.
-* Python 2.7.x was supported. 
 
-0.0.1
----------------
 
-* Uploaded code.
+
+
+

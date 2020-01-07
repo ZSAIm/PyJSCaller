@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
+# -*- coding: UTF-8 -*-
 
-"""r
+r"""
 Run JavaScript code from Python.
 
 PyJSCaller is a agent between Python and JavaScript,
@@ -17,34 +17,59 @@ a short example:
 >>> import jscaller
 >>> jscaller.eval("'Hello World!'.toUpperCase()")
 'HELLO WORLD!'
->>> from jscaller.collect import new, Date
->>> with jscaller.Session('example.js', timeout=3) as sess:
+>>> from jscaller import new, session
+>>> with session('example.js', timeout=3) as sess:
+...     Date, add = sess.get('Date', 'add')
 ...     today = new(Date()).getFullYear()
-...     sess.call(today)
-...     add = sess.get('add')
 ...     retval = add(add(1, 2), 2)
-...     sess.call(retval)
->>> retval.getValue()
+...     sess.call(today, retval)
+>>> retval.get_value()
 5
->>> today.getValue()
+>>> today.get_value()
 2019
 
 """
 
-__all__ = ["engine", "collect", "Session", "make", "eval"]
 
-from . import engine, session, collect
-from .session import Session
+from __future__ import unicode_literals
+__all__ = ["session", "engine", "Session", "make", "eval", "new"]
+
+from . import engine
+from .session import Session, JSContext
+from contextlib import contextmanager
+
+
+def new(expr):
+    """ 使用new运算符。"""
+    expr.__new_instance__()
+    return expr
 
 
 def make(engine):
-    """ make the JS Execute Engine.
-    """
-    session.RUNTIME_JSENGINE = engine
+    """ 指定默认的JS执行引擎。"""
+    session.GLOBAL_JSENGINE = engine
 
 
-def eval(jscode, timeout=None):
-    with Session(timeout=timeout) as sess:
-        retval = sess.call(collect.eval(jscode))
-    return retval.getValue()
+@contextmanager
+def session(file, timeout=None, engine=None):
+    """ 建立脚本会话。 """
+    with open(file, 'r') as f:
+        js_ctx = f.read()
+    sess = Session(js_ctx, timeout, engine)
+    yield sess
+    sess.leave()
+
+
+def eval(js_code, timeout=None, engine=None):
+    """ 执行JS代码。"""
+    with Session(js_code, timeout, engine) as sess:
+        eval = sess.get('eval')
+        retval = sess.call(eval(js_code))
+    return retval.get_value()
+
+
+def compile(js_file, timeout=None, engine=None):
+    """ 生成JS上下文对象。 """
+    return JSContext(js_file, timeout, engine)
+
 
