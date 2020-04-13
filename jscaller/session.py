@@ -2,14 +2,13 @@
 from tempfile import NamedTemporaryFile
 from traceback import print_exc
 from os import unlink, path
-from jscaller.express import Express, Result, Object
-from jscaller.express import dict2result, array2result, object2result
-
-from jscaller.engine import NodeJS
+from .express import Express, Result, Object
+from .express import dict2result, array2result, object2result
+import jscaller
+from .engine import NodeJS
 
 import json
 
-JS_HANDLE_NAME = '_'
 GLOBAL_JSENGINE = NodeJS
 
 
@@ -43,8 +42,8 @@ class Session:
         self._drive_code = ''
         self.js_ctx = js_context
         if not engine:
-            self.engine = GLOBAL_JSENGINE
-
+            engine = GLOBAL_JSENGINE
+        self.engine = engine
         self._closed = False
 
         self.process = None
@@ -217,7 +216,7 @@ class Session:
         exec_cells = []
         for i in self._result_cells:
             value = i.__linked_expr__(self)
-            exec_cells.append('%s.push(%s);\n' % (JS_HANDLE_NAME, value))
+            exec_cells.append('%s.push(%s);\n' % (jscaller.VARIABLE_NAME, value))
 
         # 使用双分隔符来包围输出结果。
         template = '{prefix};'\
@@ -227,7 +226,7 @@ class Session:
                    '{suffix};'
 
         return template.format(seperator=r'\n\t\n\t',
-                               name=JS_HANDLE_NAME,
+                               name=jscaller.VARIABLE_NAME,
                                exec_cells=str(''.join(exec_cells)),
                                prefix=self.engine.prefix,
                                suffix=self.engine.suffix)

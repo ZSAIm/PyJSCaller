@@ -1,8 +1,7 @@
 # -*- coding: UTF-8 -*-
 from __future__ import unicode_literals
 from functools import wraps
-
-VARIABLE_NAME = '_'
+import jscaller
 
 
 def object2result(obj):
@@ -203,12 +202,12 @@ class Express(BaseObject):
             self._value = res
             return res
 
-    getValue = get_value
+    result = get_value
 
     def __linked_expr__(self, sess):
         """ 返回连接会话的结果对象后的表达式。 """
         if self.__is_result__():
-            return '%s[%d]' % (VARIABLE_NAME, sess.index(self.__result__))
+            return '%s[%d]' % (jscaller.VARIABLE_NAME, sess.index(self.__result__))
         else:
             expr_array = []
             for i in self.__operands:

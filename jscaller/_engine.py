@@ -15,7 +15,7 @@ from threading import Timer, Event
 import os
 
 
-class EngineTimeout(Exception):
+class RuntimeTimeout(Exception):
     def __init__(self, command, timeout):
         self.cmd = command
         self.timeout = timeout
@@ -98,7 +98,7 @@ class JSEngine:
             # 如果定时线程未启动说明未超时，可以取消定线程。
             t.cancel()
             if kill_event.is_set():
-                raise EngineTimeout(command, timeout)
+                raise RuntimeTimeout(command, timeout)
         else:
             process = Popen(command, encoding=self.encoding, shell=self.shell,
                             stdout=PIPE, stderr=PIPE, cwd=self.cwd, env=self.env)
@@ -106,7 +106,7 @@ class JSEngine:
             try:
                 stdout, stderr = process.communicate(timeout=timeout)
             except TimeoutExpired as e:
-                raise EngineTimeout(e.cmd, e.timeout)
+                raise RuntimeTimeout(e.cmd, e.timeout)
 
         return process, stdout, stderr
 

@@ -1,7 +1,7 @@
 PyJSCaller
 ===============
 [![Build Status](https://img.shields.io/badge/build-passing-green.svg)](https://github.com/ZSAIm/PyJSCaller)
-[![Build Status](https://img.shields.io/badge/pypi-v0.2.0-blue.svg)](https://pypi.org/project/PyJSCaller/)
+[![Build Status](https://img.shields.io/badge/pypi-v0.2.1-blue.svg)](https://pypi.org/project/PyJSCaller/)
 
 
 Python 调用执行 JavaScript 代码。

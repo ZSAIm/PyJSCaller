@@ -30,13 +30,16 @@ a short example:
 
 """
 
-
 from __future__ import unicode_literals
-__all__ = ["session", "engine", "Session", "make", "eval", "new"]
 
 from . import engine
 from .session import Session, JSContext
 from contextlib import contextmanager
+
+__all__ = ["session", "engine", "Session", "make", "eval", "new"]
+
+
+VARIABLE_NAME = '_'
 
 
 def new(expr):
